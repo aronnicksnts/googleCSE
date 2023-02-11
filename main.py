@@ -1,11 +1,23 @@
 import json
 import math
 from googleapiclient.discovery import build
+import urllib.request
+from urllib.error import HTTPError
 
 dataJSON = json.load(open('data.json'))
 
-def getImages(query: str, totalNumImages: int):
-    totalNumImages = math.ceil(totalNumImages/10)
+# Saves images into a folder named images; if it fails, returns the image link
+def saveImage(url: str, imageName: str):
+    try:
+        #Need to change to work with proxies
+        urllib.request.urlretrieve(url, f'images/{imageName}.jpg')
+    except HTTPError as e:
+        print(f'Failed to scrape: {url}')
+        return url
+
+# Puts image data from Google Search into an Array
+def getImagesData(query: str, totalNumImages: int):
+    totalNumImages = math.ceil(totalNumImages//10)
     service = build("customsearch", 'v1', developerKey=dataJSON['customSearchAPI'])
     allResponses = []
 
@@ -19,12 +31,14 @@ def getImages(query: str, totalNumImages: int):
             safe= 'off',
             start=10*i+1
         ).execute()
-        allResponses.append(response)
+        allResponses.extend(response.get('items'))
 
     if not allResponses:
         return None
     else:
         return allResponses
 
-test = getImages("hello", 22)
-print(f'Size of allResponses: {len(test)}\nSize of inside: {len(test[0])}')
+# imageData = getImagesData("Garbage Dump", 20)
+
+# for i, image in enumerate(imageData):
+#     saveImage(image['link'], f'image{i}')
