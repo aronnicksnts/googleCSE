@@ -46,7 +46,6 @@ def getImagesData(query: str, numberOfImages: int, pageNumber: int):
         return allResponses
 
 
-
 # Implements multiprocessing to save images
 if __name__ == "__main__":
     print(f"Getting images of {imageQuery}")
@@ -60,6 +59,7 @@ if __name__ == "__main__":
     with Pool(6) as p:
         imageData = p.starmap(getImagesData, zip(repeat(imageQuery), repeat(10), pageNumbers))
         allImageData = []
+        # Changes dimension of imageData from [[imageDict, imageDict2]] to [imageDict, imageDict2]
         for images in imageData:
             allImageData.extend(images)
         p.starmap(saveImage, zip(allImageData, imageNames))
