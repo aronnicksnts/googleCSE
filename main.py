@@ -3,17 +3,17 @@ import math
 from googleapiclient.discovery import build
 import urllib.request
 from urllib.error import HTTPError
+import logging
 
 dataJSON = json.load(open('data.json'))
 
-# Saves images into a folder named images; if it fails, returns the image link
+# Saves images into a folder named images; if it fails, logs url
 def saveImage(url: str, imageName: str):
     try:
         #Need to change to work with proxies
         urllib.request.urlretrieve(url, f'images/{imageName}.jpg')
     except HTTPError as e:
-        print(f'Failed to scrape: {url}')
-        return url
+        logging.error(f'Failed to save image: {url}')
 
 # Puts image data from Google Search into an Array
 def getImagesData(query: str, totalNumImages: int):
@@ -38,7 +38,8 @@ def getImagesData(query: str, totalNumImages: int):
     else:
         return allResponses
 
-# imageData = getImagesData("Garbage Dump", 20)
-
-# for i, image in enumerate(imageData):
-#     saveImage(image['link'], f'image{i}')
+imageData = getImagesData("mangoes on table", 20)
+logging.basicConfig(filename='main.log', encoding='utf-8', level=logging.DEBUG)
+for i, image in enumerate(imageData):
+    logging.info(f'Saving image{i}: {image["link"]}')
+    saveImage(image['link'], f'image{i}')
