@@ -82,7 +82,13 @@ if __name__ == "__main__":
         for images in imageData:
             allImageData.extend(images)
         if dataJSON['saveDataToCSV']:
-            pd.DataFrame(allImageData).to_csv('data.csv')
+            try:
+                currentCSV = pd.read_csv('data.csv')
+                df = pd.concat([currentCSV, pd.DataFrame(allImageData)])
+                df.reset_index(drop=True, inplace=True)
+                df.to_csv('data.csv')
+            except:
+                pd.DataFrame(allImageData).to_csv('data.csv')
         print("Saving Images gathered")
         p.starmap(save_image, zip(allImageData, imageNames))
 
