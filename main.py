@@ -66,7 +66,7 @@ def get_images_data(query: str, numberOfImages: int, pageNumber: int):
 
 
 # Implements multiprocessing to save images
-if __name__ == "__main__":
+if __name__ == "__main__":  
     pageNumbers = []
     for i in range((numberOfImages//10)):
         pageNumbers.append(i+dataJSON['startingPageNumber'])
@@ -75,6 +75,7 @@ if __name__ == "__main__":
         imageNames.append(f'{i+1}')
 
     with Pool(6) as p:
+        print("Scraping Image Links")
         imageData = p.starmap(get_images_data, zip(repeat(imageQuery), repeat(10), pageNumbers))
         allImageData = []
         # Changes dimension of imageData from [[imageDict, imageDict2]] to [imageDict, imageDict2]
@@ -82,7 +83,7 @@ if __name__ == "__main__":
             allImageData.extend(images)
         if dataJSON['saveDataToCSV']:
             pd.DataFrame(allImageData).to_csv('data.csv')
-            
+        print("Saving Images gathered")
         p.starmap(save_image, zip(allImageData, imageNames))
 
     print("Finished Saving all Images")
