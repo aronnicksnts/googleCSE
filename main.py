@@ -72,7 +72,7 @@ if __name__ == "__main__":
         pageNumbers.append(i+dataJSON['startingPageNumber'])
     imageNames = []
     for i in range(numberOfImages):
-        imageNames.append(f'{i+1}')
+        imageNames.append(f'{(dataJSON["startingPageNumber"]-1)*10+(i+1)}')
 
     with Pool(6) as p:
         print("Scraping Image Links")
