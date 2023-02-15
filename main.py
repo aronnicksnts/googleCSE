@@ -6,25 +6,37 @@ import logging
 from multiprocessing import Pool
 from p_tqdm import p_map
 from itertools import repeat
+import pandas as pd
 
 dataJSON = json.load(open('data.json'))
-imageQuery = 'oranges on table'
+
+#The prompt that the code will use
+imageQuery = dataJSON['imageQuery']
 #Rounds down to the nearest 10s
-numberOfImages = 20
+numberOfImages = dataJSON['numberOfImages']
+
 logging.basicConfig(filename='main.log', encoding='utf-8', level=logging.INFO)
 logging.getLogger('googleapiclient.discovery_cache').setLevel(logging.ERROR)
 
 # Saves images into a folder named images; if it fails, logs url
-def saveImage(imageData: dict, imageName: str):
+def save_image(imageData: dict, imageName: str):
     try:
         #Need to change to work with proxies
-        urllib.request.urlretrieve(imageData['link'], f'images/{imageName}.jpg')
+        urllib.request.urlretrieve(imageData['link'], f'images/{imageData["query"]}{imageName}.jpg')
         logging.info(f'Saved image{i}: {imageData["link"]}')
     except HTTPError as e:
         logging.error(f'Failed to save image: {imageData["link"]}')
 
+# Removes unnecessary data from the response and returns the cleaned response
+def cleanse_data(response):
+    unneededData = ['kind', 'htmlTitle', 'displayLink', 'snippet',
+    'htmlSnippet', 'mime', 'fileFormat', 'image']
+    for x in unneededData:
+        response.pop(x, None)
+    return response
+
 # Puts image data from Google Search into an Array
-def getImagesData(query: str, numberOfImages: int, pageNumber: int):
+def get_images_data(query: str, numberOfImages: int, pageNumber: int):
     logging.info(f'Getting image links of Query: {query}\nNumber of Images: {numberOfImages}\nPage Number: {pageNumber}')
     service = build("customsearch", 'v1', developerKey=dataJSON['customSearchAPI'])
     allResponses = []
@@ -40,6 +52,13 @@ def getImagesData(query: str, numberOfImages: int, pageNumber: int):
     ).execute()
     allResponses.extend(response.get('items'))
 
+    #Save responses to CSV file
+    for i, response in enumerate(allResponses):
+        allResponses[i] = cleanse_data(response)
+        allResponses[i]['query'] = query
+        allResponses[i]['pageNumber'] = pageNumber
+        allResponses[i]['currentIndex'] = i+1
+
     if not allResponses:
         return None
     else:
@@ -48,21 +67,23 @@ def getImagesData(query: str, numberOfImages: int, pageNumber: int):
 
 # Implements multiprocessing to save images
 if __name__ == "__main__":
-    print(f"Getting images of {imageQuery}")
     pageNumbers = []
     for i in range((numberOfImages//10)):
-        pageNumbers.append(i+1)
+        pageNumbers.append(i+dataJSON['startingPageNumber'])
     imageNames = []
     for i in range(numberOfImages):
-        imageNames.append(f'image{i+1}')
+        imageNames.append(f'{i+1}')
 
     with Pool(6) as p:
-        imageData = p.starmap(getImagesData, zip(repeat(imageQuery), repeat(10), pageNumbers))
+        imageData = p.starmap(get_images_data, zip(repeat(imageQuery), repeat(10), pageNumbers))
         allImageData = []
         # Changes dimension of imageData from [[imageDict, imageDict2]] to [imageDict, imageDict2]
         for images in imageData:
             allImageData.extend(images)
-        p.starmap(saveImage, zip(allImageData, imageNames))
+        if dataJSON['saveDataToCSV']:
+            pd.DataFrame(allImageData).to_csv('data.csv')
+            
+        p.starmap(save_image, zip(allImageData, imageNames))
 
     print("Finished Saving all Images")
 
