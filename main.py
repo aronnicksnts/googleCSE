@@ -9,7 +9,7 @@ from itertools import repeat
 import pandas as pd
 from datetime import datetime
 from os import mkdir
-from queue import Queue
+import tempfile
 
 dataJSON = json.load(open('data.json'))
 
@@ -34,7 +34,6 @@ def save_image(imageData: dict, imageNumber: str):
         logging.info(f'Saved image_{imageNumber}: {imageData["link"]}')
     except HTTPError as e:
         logging.error(f'Failed to save image_{imageNumber}: {imageData["link"]} with error: {e}')
-        unsaved_images.put(imageData['link'])
 
 
 # Removes unnecessary data from the response and returns the cleaned response
@@ -79,14 +78,6 @@ def get_images_data(query: str, numberOfImages: int, pageNumber: int):
         return allResponses
 
 
-# Changes the status of unsaved images to Error in the DataFrame
-def change_metadata(imageMetaData, unsaved_images):
-    while not unsaved_images.empty():
-        link = unsaved_images.get()
-        imageMetaData.loc[imageMetaData['link'] == link, 'Save Status'] = 'Error'
-    return imageMetaData
-
-
 # Implements multiprocessing to save images
 if __name__ == "__main__":  
     pageNumbers = []
@@ -96,8 +87,6 @@ if __name__ == "__main__":
     for i in range(numberOfImages):
         imageNumber.append(f'{(dataJSON["startingPageNumber"]-1)*10+(i+1)}')
 
-    # Links of images that weren't able to be saved
-    unsaved_images = Queue()
 
     with Pool(8) as p:
         
@@ -109,14 +98,11 @@ if __name__ == "__main__":
             allImageData.extend(images)
         
         imageMetaData = pd.DataFrame(allImageData)
-        imageMetaData['Save Status'] = 'Success'
         mkdir(f'images/{currTime}')
 
         print("Saving Images gathered")
         p.starmap(save_image, zip(allImageData, imageNumber))
         print("Finished Saving Images")
-
-        # imageMetaData = change_metadata(imageMetaData, unsaved_images)
 
         print("Saving dataframe to CSV")
         imageMetaData.to_csv(f'saved_metadata/{currTime}.csv')
