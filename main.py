@@ -5,11 +5,11 @@ from urllib.error import HTTPError
 from googleapiclient.errors import HttpError
 import logging
 from multiprocessing import Pool
-from p_tqdm import p_map
 from itertools import repeat
 import pandas as pd
 from datetime import datetime
 from os import mkdir
+from queue import Queue
 
 dataJSON = json.load(open('data.json'))
 
@@ -26,15 +26,15 @@ currTime = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
 logging.basicConfig(filename=f'logs/{currTime}.log', encoding='utf-8', level=logging.INFO)
 logging.getLogger('googleapiclient.discovery_cache').setLevel(logging.ERROR)
 
-# Saves images into a folder named images; if it fails, logs url
-# Additionally adds metadata to the dataframe
+# Saves images into a folder named images/{time}; if it fails, logs url
 def save_image(imageData: dict, imageNumber: str):
     try:
         #Need to change to work with proxies
         urllib.request.urlretrieve(imageData['link'], f'images/{currTime}/{imageData["query"]}_{imageNumber}.jpg')
         logging.info(f'Saved image_{imageNumber}: {imageData["link"]}')
     except HTTPError as e:
-        logging.error(f'Failed to save image_{imageNumber}: {imageData["link"]}')
+        logging.error(f'Failed to save image_{imageNumber}: {imageData["link"]} with error: {e}')
+        unsaved_images.put(imageData['link'])
 
 
 # Removes unnecessary data from the response and returns the cleaned response
@@ -44,6 +44,7 @@ def cleanse_data(response):
     for x in unneededData:
         response.pop(x, None)
     return response
+
 
 # Puts image data from Google Search into an Array
 def get_images_data(query: str, numberOfImages: int, pageNumber: int):
@@ -77,6 +78,15 @@ def get_images_data(query: str, numberOfImages: int, pageNumber: int):
     else:
         return allResponses
 
+
+# Changes the status of unsaved images to Error in the DataFrame
+def change_metadata(imageMetaData, unsaved_images):
+    while not unsaved_images.empty():
+        link = unsaved_images.get()
+        imageMetaData.loc[imageMetaData['link'] == link, 'Save Status'] = 'Error'
+    return imageMetaData
+
+
 # Implements multiprocessing to save images
 if __name__ == "__main__":  
     pageNumbers = []
@@ -86,7 +96,11 @@ if __name__ == "__main__":
     for i in range(numberOfImages):
         imageNumber.append(f'{(dataJSON["startingPageNumber"]-1)*10+(i+1)}')
 
+    # Links of images that weren't able to be saved
+    unsaved_images = Queue()
+
     with Pool(8) as p:
+        
         print("Scraping Image Links")
         imageData = p.starmap(get_images_data, zip(repeat(imageQuery), repeat(10), pageNumbers))
         allImageData = []
@@ -95,12 +109,15 @@ if __name__ == "__main__":
             allImageData.extend(images)
         
         imageMetaData = pd.DataFrame(allImageData)
+        imageMetaData['Save Status'] = 'Success'
+        mkdir(f'images/{currTime}')
+
+        print("Saving Images gathered")
+        p.starmap(save_image, zip(allImageData, imageNumber))
+        print("Finished Saving Images")
+
+        # imageMetaData = change_metadata(imageMetaData, unsaved_images)
+
         print("Saving dataframe to CSV")
         imageMetaData.to_csv(f'saved_metadata/{currTime}.csv')
         print("Finished Saving to CSV")
-
-        mkdir(f'images/{currTime}')
-        
-        print("Saving Images gathered")
-        p.starmap(save_image, zip(allImageData, imageNumber))
-        print("Finished Saving all Images")
