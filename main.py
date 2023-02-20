@@ -100,6 +100,7 @@ if __name__ == "__main__":
         print("Finished Saving to CSV")
 
         mkdir(f'images/{currTime}')
+        
         print("Saving Images gathered")
         p.starmap(save_image, zip(allImageData, imageNumber))
         print("Finished Saving all Images")

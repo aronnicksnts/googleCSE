@@ -1,4 +1,4 @@
 data.json
-images/
-logs/
-saved_metadata/
+images/*
+logs/*
+saved_metadata/*
