@@ -9,7 +9,6 @@ from itertools import repeat
 import pandas as pd
 from datetime import datetime
 from os import mkdir
-import tempfile
 
 dataJSON = json.load(open('data.json'))
 
@@ -26,7 +25,7 @@ currTime = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
 logging.basicConfig(filename=f'logs/{currTime}.log', encoding='utf-8', level=logging.INFO)
 logging.getLogger('googleapiclient.discovery_cache').setLevel(logging.ERROR)
 
-# Saves images into a folder named images/{time}; if it fails, logs url
+# Saves images into a folder named images/{time}; if it fails, logs url and returns the url link
 def save_image(imageData: dict, imageNumber: str):
     try:
         #Need to change to work with proxies
@@ -34,6 +33,7 @@ def save_image(imageData: dict, imageNumber: str):
         logging.info(f'Saved image_{imageNumber}: {imageData["link"]}')
     except HTTPError as e:
         logging.error(f'Failed to save image_{imageNumber}: {imageData["link"]} with error: {e}')
+        return f"{imageData['link']}"
 
 
 # Removes unnecessary data from the response and returns the cleaned response
@@ -98,12 +98,16 @@ if __name__ == "__main__":
             allImageData.extend(images)
         
         imageMetaData = pd.DataFrame(allImageData)
+        imageMetaData['Save Status'] = 'Success'
+        imageMetaData.index += 1
         mkdir(f'images/{currTime}')
 
         print("Saving Images gathered")
-        p.starmap(save_image, zip(allImageData, imageNumber))
+        unsaved_data = p.starmap(save_image, zip(allImageData, imageNumber))
         print("Finished Saving Images")
 
         print("Saving dataframe to CSV")
+        for unsaved in unsaved_data:
+            imageMetaData.loc[imageMetaData['link'] == unsaved, 'Save Status'] = 'Error'
         imageMetaData.to_csv(f'saved_metadata/{currTime}.csv')
         print("Finished Saving to CSV")
