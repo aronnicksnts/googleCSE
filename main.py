@@ -31,6 +31,7 @@ def save_image(imageData: dict, imageNumber: str):
         #Need to change to work with proxies
         urllib.request.urlretrieve(imageData['link'], f'images/{currTime}/{imageData["query"]}_{imageNumber}.jpg')
         logging.info(f'Saved image {imageData["query"]}_{imageNumber}: {imageData["link"]}')
+        return
     except HTTPError as e:
         logging.error(f'Failed to save image {imageData["query"]}_{imageNumber}: {imageData["link"]} with error: {e}')
         return f"{imageData['link']}"
