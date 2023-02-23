@@ -9,6 +9,9 @@ from itertools import repeat
 import pandas as pd
 from datetime import datetime
 from os import mkdir
+import socket
+
+socket.setdefaulttimeout(10)
 
 dataJSON = json.load(open('data.json'))
 
@@ -26,14 +29,14 @@ logging.basicConfig(filename=f'logs/{currTime}.log', encoding='utf-8', level=log
 logging.getLogger('googleapiclient.discovery_cache').setLevel(logging.ERROR)
 
 # Saves images into a folder named images/{time}; if it fails, logs url and returns the url link
-def save_image(imageData: dict, imageNumber: str):
+def save_image(imageData: dict):
     try:
         #Need to change to work with proxies
-        urllib.request.urlretrieve(imageData['link'], f'images/{currTime}/{imageData["query"]}_{imageNumber}.jpg')
-        logging.info(f'Saved image {imageData["query"]}_{imageNumber}: {imageData["link"]}')
+        urllib.request.urlretrieve(imageData['link'], f'images/{currTime}/{imageData["query"]}_{imageData["Image Number"]}.jpg')
+        logging.info(f'Saved image {imageData["query"]}_{imageData["Image Number"]}: {imageData["link"]}')
         return
-    except HTTPError as e:
-        logging.error(f'Failed to save image {imageData["query"]}_{imageNumber}: {imageData["link"]} with error: {e}')
+    except (HTTPError, socket.timeout) as e:
+        logging.error(f'Failed to save image {imageData["query"]}_{imageData["Image Number"]}: {imageData["link"]} with error: {e}')
         return f"{imageData['link']}"
 
 
@@ -82,29 +85,28 @@ def get_images_data(query: str, numberOfImages: int, pageNumber: int):
 # Implements multiprocessing to save images
 if __name__ == "__main__":  
     pageNumbers = []
-    for i in range((numberOfImages//10)):
+    for i in range(numberOfImages//10):
         pageNumbers.append(i+dataJSON['startingPageNumber'])
-    imageNumber = []
-    for i in range(numberOfImages):
-        imageNumber.append(f'{(dataJSON["startingPageNumber"]-1)*10+(i+1)}')
 
-
-    with Pool(8) as p:
-        
+    with Pool(6) as p:
         print("Scraping Image Links")
         imageData = p.starmap(get_images_data, zip(repeat(imageQuery), repeat(10), pageNumbers))
         allImageData = []
         # Changes dimension of imageData from [[imageDict, imageDict2]] to [imageDict, imageDict2]
         for images in imageData:
             allImageData.extend(images)
-        
+        for i,image in enumerate(allImageData):
+            image['Image Number'] = i+1
+
         imageMetaData = pd.DataFrame(allImageData)
         imageMetaData['Save Status'] = 'Success'
         imageMetaData.index += 1
         mkdir(f'images/{currTime}')
 
         print("Saving Images gathered")
-        unsaved_data = p.starmap(save_image, zip(allImageData, imageNumber))
+        print(datetime.now())
+        unsaved_data = p.starmap(save_image, zip((allImageData)))
+        print(datetime.now())
         print("Finished Saving Images")
 
         print("Saving dataframe to CSV")
