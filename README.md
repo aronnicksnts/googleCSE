@@ -1,4 +1,4 @@
-# googleCSE
+# About
 Uses Google's Custom Search Engine to scrape images
 
 # Prerequisites
@@ -12,5 +12,8 @@ Afterwards, the ID and API into the *data.json* file as such
 {
     "customSearchAPI": "yourCustomSearchAPI",
     "searchEngineID": "yourSearchEngineID" 
+    "imageQuery": "yourSearchQuery",
+    "numberOfImages": 1000,
+    "startingPageNumber": 1
 }
 </code></pre>

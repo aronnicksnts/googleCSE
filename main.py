@@ -98,17 +98,17 @@ if __name__ == "__main__":
         for i,image in enumerate(allImageData):
             image['Image Number'] = i+1
 
+        # Create DataFrame and Create directory for location where images are saved
         imageMetaData = pd.DataFrame(allImageData)
         imageMetaData['Save Status'] = 'Success'
         imageMetaData.index += 1
         mkdir(f'images/{currTime}')
 
         print("Saving Images gathered")
-        print(datetime.now())
         unsaved_data = p.starmap(save_image, zip((allImageData)))
-        print(datetime.now())
         print("Finished Saving Images")
 
+        # Change Save Status to Error for ones that failed to be saved
         print("Saving dataframe to CSV")
         for unsaved in unsaved_data:
             imageMetaData.loc[imageMetaData['link'] == unsaved, 'Save Status'] = 'Error'
